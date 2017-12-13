@@ -14,6 +14,7 @@ export interface ISourceFileModel {
 }
 
 export enum BranchType {
+    None,
     Namespace,
     Classes,
     Class,
