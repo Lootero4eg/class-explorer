@@ -17,28 +17,63 @@ export class ClassExplorerProvider implements vscode.TreeDataProvider<Branch>, v
     }
     
     getTreeItem(element: Branch): vscode.TreeItem {
-        return {
+		
+		let treeItem: vscode.TreeItem = {
 			label: element.Name,
 			collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
 			command: null,		
-			iconPath: {
+			/*iconPath: {
 				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'folder.svg'),
 				dark: path.join(__filename, '..', '..', '..', 'resources', 'dark', 'folder.svg')
-			}
+			}*/
 		};
-		//return element;
+
+		if(element.Icon == 0){
+			treeItem.iconPath = {
+				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'folder.svg'),
+				dark: path.join(__filename, '..', '..', '..', 'resources', 'dark', 'folder.svg')
+			};
+		}
+
+		if(element.Icon == 1){
+			treeItem.iconPath = {
+				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'document.svg'),
+				dark: path.join(__filename, '..', '..', '..', 'resources', 'dark', 'document.svg')
+			};
+		}
+
+		if(element.Icon == 2){
+			treeItem.iconPath = {
+				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'string.svg'),
+				dark: path.join(__filename, '..', '..', '..', 'resources', 'dark', 'string.svg')
+			};
+			treeItem.collapsibleState = vscode.TreeItemCollapsibleState.None;
+		}
+
+		if(element.Icon == 3 || element.Icon == 4){
+			/*treeItem.iconPath = {
+				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'number.svg'),
+				dark: path.join(__filename, '..', '..', '..', 'resources', 'dark', 'number.svg')
+			};*/
+
+			treeItem.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
+		}
+
+		return treeItem;
     }
     
-    getChildren(element?: Branch): Branch[] | Branch[] {        
+    getChildren(element?: Branch):Branch[] {        
 		if (!element) {
 			if (!this.model) {
 				return [];
 			}
 
-        return this.model.getTree();            
+			let root:Branch[] = this.model.getTree();
+			return root;			
         }
-
-        //return this.model.getChildren(element);
+		
+		if(element.Nodes.length > 0)
+			return element.Nodes;			
     }
 
     public provideTextDocumentContent(uri: vscode.Uri, token: vscode.CancellationToken): vscode.ProviderResult<string> {
