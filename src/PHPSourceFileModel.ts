@@ -29,7 +29,7 @@ export class PHPSourceFileModel implements ISourceFileModel{
             
         }*/                
 
-        let res: Branch[] = this.getChildren2(null,null);
+        let res: Branch[] = this.getChildren2(null);
         //branch.Nodes = this.getChildren(branch.Nodes[0]);
         //res.push(branch);
 
@@ -40,10 +40,13 @@ export class PHPSourceFileModel implements ISourceFileModel{
         return null;
     }
 
-    private getChildren2(node: Branch, itemname: string): Branch[]{
+    private getChildren2(node: Branch): Branch[]{
         let phpfile: string = this.editor.document.getText();
         let ifaces:Branch[] = [];
         let classes:Branch[] = [];
+        let consts:Branch[] = [];
+        let properties:Branch[] = [];
+        let methods:Branch[] = [];
 
         if(node == null){ //--get root
             node = this.InitNewBranch();            
@@ -70,7 +73,7 @@ export class PHPSourceFileModel implements ISourceFileModel{
                 
                 nextBranch.Name = "Interfaces";
                 nextBranch.Type = BranchType.Interfaces;                                                
-                ifaces = this.getChildren2(nextBranch, null);
+                ifaces = this.getChildren2(nextBranch);
                 
                 if(ifaces != [] && ifaces[0].Nodes.length > 0)
                     node.Nodes.concat(ifaces);
@@ -81,10 +84,16 @@ export class PHPSourceFileModel implements ISourceFileModel{
                 }*/
                 nextBranch.Name = "Classes";
                 nextBranch.Type = BranchType.Classes;                                                
-                classes = this.getChildren2(nextBranch, null);
+                classes = this.getChildren2(nextBranch);
 
-                if(classes != [] && classes[0].Nodes.length > 0)
-                node.Nodes.concat(classes);
+                if(classes != [] && classes[0].Nodes.length > 0){
+                    if(classes.length == 1)
+                        node.Nodes.concat(classes[0]);
+                    else{
+                        nextBranch.Nodes.concat(classes);
+                        node.Nodes.push(nextBranch);
+                    }
+                }                
 
                 break;
 
@@ -98,20 +107,43 @@ export class PHPSourceFileModel implements ISourceFileModel{
                         let nextBranch: Branch = this.InitNewBranch();
                         nextBranch.Name = "Class";
                         nextBranch.Type = BranchType.Class;
-                        classes.concat(this.getChildren2(nextBranch, classnames[i]));
-                    }                    
+                        nextBranch.SearchPattern = classnames[i];
+                        classes.concat(this.getChildren2(nextBranch));
+                    }
+                    
+                    return classes;
                 }
                 break;
 
             case BranchType.Class:
-                let classname: string = itemname.replace(/^.*class (.*?)/,"$1");
-                classname = classname.replace(/^(.*?) extends (.*).*$/,'$1(base: $2)');
+                let classname: string =  node.SearchPattern.replace(/^.*class (.*?)/,"$1");
+                classname = classname.replace(/^(.*?) extends (.*).*$/,'$1(base:$2)');
+                classname = this.CleanString(classname);                
+                                
+                node.Name = classname;                
+                //--need to find start and en lines, to find gettext(range)
+
+                nextBranch = this.InitNewBranch();                        
+                nextBranch.Name = "Constants";
+                nextBranch.Type = BranchType.Constants;      
+                consts = this.getChildren2(nextBranch);
+
+                nextBranch = this.InitNewBranch();                        
+                nextBranch.Name = "Properties";
+                nextBranch.Type = BranchType.Properties;      
+                properties = this.getChildren2(nextBranch);
+
+                nextBranch = this.InitNewBranch();                        
+                nextBranch.Name = "Methods";
+                nextBranch.Type = BranchType.Methods;      
+                methods = this.getChildren2(nextBranch);
+
+                //--Собираем класс и возвращаем его
                 break;
         }
 
         let res: Branch[] = [];
-        /*if(ifaces != [] && ifaces[0].Nodes.length > 0)
-            res.concat(ifaces);*/
+
         if(node != null)
             res.push(node);
         return res;
@@ -125,7 +157,18 @@ export class PHPSourceFileModel implements ISourceFileModel{
         branch.EndLine = 0;
         branch.Icon = 0;
         branch.Nodes = [];
+        branch.SearchPattern = "";
 
         return branch;
+    }
+
+    private CleanString(s: string): string{
+        s = s.replace("{","");
+        s = s.replace("}","");
+        s = s.replace("(","");
+        s = s.replace(")","");
+        s = s.trim();
+
+        return s;
     }
 }

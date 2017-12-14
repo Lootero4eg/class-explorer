@@ -4,6 +4,9 @@ export class Branch {// extends vscode.TreeItem {
     public Type: BranchType;
     public StartLine: number = 0;
     public EndLine: number = 0;
+    public SearchPattern: string = "";
+
+    public Parent: Branch = null;
 
     public Nodes: Branch[];        
 }
@@ -20,6 +23,8 @@ export enum BranchType {
     Class,
     Interfaces,
     Interface,
+    Constants,
+    Const,
     Properties,
     Property,
     Methods,
