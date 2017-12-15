@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Branch, ISourceFileModel } from './common';
+import { Branch, ISourceFileModel, BranchType } from './common';
 
 let a = 1;
 
@@ -48,7 +48,7 @@ export class ClassExplorerProvider implements vscode.TreeDataProvider<Branch>, v
 				dark: path.join(__filename, '..', '..', '..', 'resources', 'dark', 'string.svg')
 			};
 			treeItem.collapsibleState = vscode.TreeItemCollapsibleState.None;
-		}
+		}		
 
 		if(element.Icon == 3 || element.Icon == 4){
 			/*treeItem.iconPath = {
@@ -57,6 +57,11 @@ export class ClassExplorerProvider implements vscode.TreeDataProvider<Branch>, v
 			};*/
 
 			treeItem.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
+		}
+
+		//--non collapsible items
+		if(element.Type == BranchType.Const || element.Type == BranchType.Property || element.Type == BranchType.Method){
+			treeItem.collapsibleState = vscode.TreeItemCollapsibleState.None;
 		}
 
 		return treeItem;

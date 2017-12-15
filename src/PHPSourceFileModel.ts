@@ -3,9 +3,13 @@ import { Branch, ISourceFileModel, BranchType } from './common';
 
 export class PHPSourceFileModel implements ISourceFileModel{
     private editor: TextEditor = null;
+    private phpfile: string = null;
+    private cleanText: string = null;
     
     constructor(activeEditor: TextEditor){
         this.editor = activeEditor;
+        this.phpfile = this.editor.document.getText();
+        this.cleanText = this.ClearComments(this.phpfile);
     }
 
     public getTree(): Branch[]{
@@ -40,14 +44,14 @@ export class PHPSourceFileModel implements ISourceFileModel{
         return null;
     }
 
-    private getChildren2(node: Branch): Branch[]{
-        let phpfile: string = this.editor.document.getText();
+    private getChildren2(node: Branch): Branch[]{        
         let ifaces:Branch[] = [];
         let classes:Branch[] = [];
         let consts:Branch[] = [];
         let properties:Branch[] = [];
         let methods:Branch[] = [];
         let res: Branch[] = [];
+        let tmpContent = null;
 
         let nextBranch: Branch = null;
 
@@ -59,7 +63,7 @@ export class PHPSourceFileModel implements ISourceFileModel{
 
         switch(node.Type){
             case BranchType.Namespace:
-                let namespaces: string[] = phpfile.match(/namespace.*/g);
+                let namespaces: string[] = this.phpfile.match(/namespace.*/g);
                 if(namespaces != null && namespaces.length > 0){
                     for(var i = 0; i < namespaces.length; i++) {
                         let namespace: string = namespaces[i].replace(/^.*namespace (.*?);/,"$1");
@@ -73,32 +77,56 @@ export class PHPSourceFileModel implements ISourceFileModel{
                 if(node.Name != "Namespace"){                    
                     nextBranch = this.InitNewBranch();
                 }
-                
+                                
                 nextBranch.Name = "Interfaces";
                 nextBranch.Type = BranchType.Interfaces;                                                
                 ifaces = this.getChildren2(nextBranch);
                 
-                if(ifaces != [] && ifaces.length > 0)
-                    node.Nodes = node.Nodes.concat(ifaces);
+                if(ifaces != [] && ifaces.length > 0){
+                    nextBranch.Nodes = nextBranch.Nodes.concat(ifaces);
+                    res.push(nextBranch);
+                }
                 
+                nextBranch = this.InitNewBranch();
                 nextBranch.Name = "Classes";
                 nextBranch.Type = BranchType.Classes;                                                
                 classes = this.getChildren2(nextBranch);
 
                 if(classes != [] && classes.length > 0){                   
-                    node.Nodes = node.Nodes.concat(classes);
+                    nextBranch.Nodes = nextBranch.Nodes.concat(classes);
+                    res.push(nextBranch);                    
                 }                
-
-                break;
+                return res;
 
             case BranchType.Interfaces:
-                node = null;
+                let interfaces: string[] = this.cleanText.match(/interface\s\w+/gi);
+                if(interfaces != null && interfaces.length > 0){
+                    for(var i = 0; i < interfaces.length; i++) {
+                        nextBranch = this.InitNewBranch();
+                        nextBranch.Name = "Interface";                        
+                        nextBranch.Type = BranchType.Interface;
+                        nextBranch.Icon = 2;
+                        nextBranch.SearchPattern = interfaces[i];
+                        ifaces = ifaces.concat(this.getChildren2(nextBranch));
+                        if(ifaces[0].Nodes != [] && ifaces[0].Nodes[0] != null)
+                            ifaces[0].Nodes[0].Parent = ifaces[0];
+                    }
+                                        
+                    return ifaces;                    
+                }
                 break;
 
-            case BranchType.Classes:
-                let cleanText: string = this.ClearComments(phpfile);
-                //let classnames: string[] = phpfile.match(/class .*/g);
-                let classnames: string[] = cleanText.match(/class .*/g);
+            case BranchType.Interface:
+                let interfaceName: string =  this.FixWhiteSpaces(node.SearchPattern.replace(/^.*interface\s(.*?)/i,"$1"));                
+                interfaceName = this.CleanString(interfaceName); 
+
+                node.Name = interfaceName;                                                                      
+                node = this.GetClassOrInterfaceEnvironment(node);
+                ifaces.push(node);
+                return ifaces;
+
+            case BranchType.Classes:                                
+                let classnames: string[] = this.cleanText.match(/class\s*\w+/g);
                 if(classnames != null && classnames.length > 0){
                     for(var i = 0; i < classnames.length; i++) {
                         nextBranch = this.InitNewBranch();
@@ -107,6 +135,8 @@ export class PHPSourceFileModel implements ISourceFileModel{
                         nextBranch.Icon = 1;
                         nextBranch.SearchPattern = classnames[i];
                         classes = classes.concat(this.getChildren2(nextBranch));
+                        if(classes[0].Nodes != [] && classes[0].Nodes[0] != null)
+                            classes[0].Nodes[0].Parent = classes[0];
                     }
                                         
                     return classes;                    
@@ -114,55 +144,22 @@ export class PHPSourceFileModel implements ISourceFileModel{
                 break;
 
             case BranchType.Class:
-                let classname: string =  this.FixWhiteSpaces(node.SearchPattern.replace(/^.*class (.*?)/,"$1"));                
-                classname = classname.replace(/^(.*?) extends (.*?) implements (.*?)\s*$/,'$1:$2');
-                classname = classname.replace(/^(.*?) extends (.*).*$/,'$1:$2');                
+                let classname: string =  this.FixWhiteSpaces(node.SearchPattern.replace(/^.*class\s(.*?)/,"$1"));                                
                 classname = this.CleanString(classname); 
+                                
+                node.Name = classname;                                                                      
+                node = this.GetClassOrInterfaceEnvironment(node);
                 
-                if(classname.split(" ").length>1)
-                    break;
-                
-                //classname = this.RemoveWhiteSpaces(classname);
-                node.Name = classname;                      
-                //--need to find start and en lines, to find gettext(range)
-
-                nextBranch = this.InitNewBranch(node);                        
-                nextBranch.Name = "Constants";
-                nextBranch.Type = BranchType.Constants;
-                nextBranch.Icon = 3;
-                consts = this.getChildren2(nextBranch);
-
-                nextBranch = this.InitNewBranch(node);                        
-                nextBranch.Name = "Properties";
-                nextBranch.Type = BranchType.Properties;      
-                nextBranch.Icon = 4;
-                properties = this.getChildren2(nextBranch);
-
-                nextBranch = this.InitNewBranch(node);                        
-                nextBranch.Name = "Methods";
-                nextBranch.Type = BranchType.Methods;      
-                methods = this.getChildren2(nextBranch);
-                
-                if(consts[0].Nodes.length > 0)
-                    node.Nodes = node.Nodes.concat(consts);
-
-                if(properties[0].Nodes.length > 0)
-                    node.Nodes = node.Nodes.concat(properties);
-
-                /*if(methods[0].Nodes.length > 0)
-                    node.Nodes = node.Nodes.concat(methods);*/
-
-                //--Собираем класс и возвращаем его. Пока так
                 classes.push(node);
-                return classes;
-                //break;
+                return classes;                
 
                 case BranchType.Constants:
-                    let constants: string[] = phpfile.match(/const .*/gi);
+                    tmpContent = this.GetBracketsContent(this.cleanText,node.Parent.SearchPattern,"{","}");
+                    let constants: string[] = tmpContent.match(/const\s*.*/gi);
                     if(constants == null)
                         break;
                     for(var i=0; i< constants.length; i++){
-                        let constant: string = constants[i].replace(/.*const (.*?) = (.*?)\s*;/,"$1");
+                        let constant: string = constants[i].replace(/const\s*(\w+).*;/i,"$1");
                         constant = this.CleanString(constant);
                         let constBranch: Branch = this.InitNewBranch(node);
                         constBranch.Type = BranchType.Const;
@@ -173,22 +170,22 @@ export class PHPSourceFileModel implements ISourceFileModel{
                     node.Nodes = consts;
                     break;
                 
-                case BranchType.Const://--not using
+                case BranchType.Const://--not used
                     node = null;
                     break;
                 
                 case BranchType.Properties:
                     let props: string[] = [];
-                    let privateP: string[] = phpfile.match(/\s*private\s*.*;/gi);
-                    let protectedP: string[] = phpfile.match(/\s*protected\s*.*;/gi);
-                    let publicP: string[] = phpfile.match(/\s*public\s*.*;/gi);
+                    tmpContent = this.GetBracketsContent(this.cleanText,node.Parent.SearchPattern,"{","}");
+                    let privateP: string[] = tmpContent.match(/private\s*.*;/gi);
+                    let protectedP: string[] = tmpContent.match(/protected\s*.*;/gi);                    
+                    let publicP: string[] = tmpContent.match(/public\s*.*;/gi);
                     props = props.concat(privateP != null ? privateP : []);
                     props = props.concat(protectedP != null ? protectedP : []);
                     props = props.concat(publicP != null ? publicP : []);
 
                     for(var i=0; i< props.length; i++){                        
-                        let property: string = '$' + props[i].replace(/\s*.*\$(.*?)\s*;$/,'$1');
-                        property = property.replace(/ =.*$/,'');
+                        let property: string = props[i].replace(/\s*.*(\$.*?);/,'$1');                        
                         property = this.CleanString(property);
                         let propBranch: Branch = this.InitNewBranch(node);
                         propBranch.Type = BranchType.Const;
@@ -198,13 +195,26 @@ export class PHPSourceFileModel implements ISourceFileModel{
                     }
                     node.Nodes = properties;
                     break;
-                case BranchType.Property:
+                case BranchType.Property://--not used
                     node = null;
                     break;
                 case BranchType.Methods:
-                    node = null;
+                    tmpContent = this.GetBracketsContent(this.cleanText,node.Parent.SearchPattern,"{","}");
+                    let methodsArr: string[] = tmpContent.match(/function\s*.*/gi);
+                    methodsArr = (methodsArr != null ? methodsArr : []);
+
+                    for(var i=0; i< methodsArr.length; i++){
+                        let method: string = methodsArr[i].replace(/function\s*(\w+)\s*.*\(.*/i,"$1");
+                        method = this.CleanString(method);
+                        let methodBranch: Branch = this.InitNewBranch(node);
+                        methodBranch.Type = BranchType.Method;
+                        methodBranch.Name = method;
+                        methodBranch.Icon = 6;
+                        methods.push(methodBranch);
+                    }
+                    node.Nodes = methods;
                     break;
-                case BranchType.Method:
+                case BranchType.Method://--not used
                     node = null;
                     break;                    
         }        
@@ -229,8 +239,8 @@ export class PHPSourceFileModel implements ISourceFileModel{
     }
 
     private ClearComments(s: string): string{
-        s = s.replace(/\s*(.*?)\s*(\/\/.*).*$/,"$1");
-        s = s.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/,"");
+        s = s.replace(/\s*(.*?)\s*(\/\/.*).*$/g,"$1");
+        s = s.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/g,"");
 
         return s;
     }
@@ -256,5 +266,79 @@ export class PHPSourceFileModel implements ISourceFileModel{
         s = s.replace(/ /g, '');
 
         return s;
+    }
+
+    private GetBracketsContent(content:string, searchPattern: string, open_bracket: string, close_bracket: string): string{
+        let startSearchingPosioton: number = content.indexOf(searchPattern);
+        let startPosition: number = 0;
+        let endPosition: number = 0;
+        let innerOpenedBracketsCount = 0;
+        
+        if(startSearchingPosioton < 0)
+            return null;
+
+        startSearchingPosioton += searchPattern.length;
+
+        for(var i = startSearchingPosioton; i < (content.length + startSearchingPosioton)+1; i++){
+            if(content[i] == open_bracket && startPosition == 0){
+                startPosition = i;
+                continue;
+            }
+            
+            if(content[i] == open_bracket){
+                innerOpenedBracketsCount++;
+            }
+
+            if(content[i] == close_bracket){
+                if(innerOpenedBracketsCount>0)
+                    innerOpenedBracketsCount--;
+                else{
+                    endPosition = i;
+                    break;
+                }
+            }
+        }
+
+        if(startPosition >= endPosition)
+            return null;
+
+        return content.substring(startPosition, endPosition+1);
+    }
+
+    private GetClassOrInterfaceEnvironment(node: Branch): Branch{                                                                          
+        let consts:Branch[] = [];
+        let properties:Branch[] = [];
+        let methods:Branch[] = [];
+
+        let nextBranch: Branch = this.InitNewBranch(node);
+        nextBranch.Parent = node;                        
+        nextBranch.Name = "Constants";
+        nextBranch.Type = BranchType.Constants;
+        nextBranch.Icon = 3;
+        consts = this.getChildren2(nextBranch);
+
+        nextBranch = this.InitNewBranch(node);                        
+        nextBranch.Parent = node;
+        nextBranch.Name = "Properties";
+        nextBranch.Type = BranchType.Properties;      
+        nextBranch.Icon = 4;
+        properties = this.getChildren2(nextBranch);
+
+        nextBranch = this.InitNewBranch(node);                        
+        nextBranch.Parent = node;
+        nextBranch.Name = "Methods";
+        nextBranch.Type = BranchType.Methods;      
+        methods = this.getChildren2(nextBranch);
+        
+        if(consts[0].Nodes.length > 0)
+            node.Nodes = node.Nodes.concat(consts);
+
+        if(properties[0].Nodes.length > 0)
+            node.Nodes = node.Nodes.concat(properties);
+
+        if(methods[0].Nodes.length > 0)
+            node.Nodes = node.Nodes.concat(methods);
+
+        return node;
     }
 }
