@@ -33,28 +33,29 @@ export class ClassExplorerProvider implements vscode.TreeDataProvider<Branch>, v
 				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'folder.svg'),
 				dark: path.join(__filename, '..', '..', '..', 'resources', 'dark', 'folder.svg')
 			};
+			
 		}
 
 		if(element.Icon == 1){
 			treeItem.iconPath = {
-				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'document.svg'),
-				dark: path.join(__filename, '..', '..', '..', 'resources', 'dark', 'document.svg')
+				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'property.svg'),
+				dark: path.join(__filename, '..', '..', '..', 'resources', 'dark', 'property.svg')
 			};
 		}
 
 		if(element.Icon == 2){
 			treeItem.iconPath = {
-				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'string.svg'),
-				dark: path.join(__filename, '..', '..', '..', 'resources', 'dark', 'string.svg')
+				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'constant.svg'),
+				dark: path.join(__filename, '..', '..', '..', 'resources', 'dark', 'constant.svg')
 			};
 			treeItem.collapsibleState = vscode.TreeItemCollapsibleState.None;
 		}		
 
-		if(element.Icon == 3 || element.Icon == 4){
-			/*treeItem.iconPath = {
-				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'number.svg'),
-				dark: path.join(__filename, '..', '..', '..', 'resources', 'dark', 'number.svg')
-			};*/
+		if(element.Icon == 3 || element.Icon == 4 || element.Type == BranchType.Interface){
+			treeItem.iconPath = {
+				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'folder.svg'),
+				dark: path.join(__filename, '..', '..', '..', 'resources', 'dark', 'folder.svg')
+			};
 
 			treeItem.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
 		}
@@ -63,6 +64,28 @@ export class ClassExplorerProvider implements vscode.TreeDataProvider<Branch>, v
 		if(element.Type == BranchType.Const || element.Type == BranchType.Property || element.Type == BranchType.Method){
 			treeItem.collapsibleState = vscode.TreeItemCollapsibleState.None;
 		}
+
+		if(element.Icon == 5){
+			treeItem.iconPath = {
+				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'class.svg'),
+				dark: path.join(__filename, '..', '..', '..', 'resources', 'light', 'class.svg')
+			};			
+		}	
+
+		if(element.Icon == 6){
+			treeItem.iconPath = {
+				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'method.png'),
+				dark: path.join(__filename, '..', '..', '..', 'resources', 'light', 'method.png')
+			};			
+		}
+
+		if(element.Icon == 7){
+			treeItem.iconPath = {
+				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'interface.svg'),
+				dark: path.join(__filename, '..', '..', '..', 'resources', 'light', 'interface.svg')
+			};			
+		}
+
 
 		return treeItem;
     }

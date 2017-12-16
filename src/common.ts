@@ -20,6 +20,7 @@ export enum BranchType {
     None,
     Namespace,
     Classes,
+    AbstractClass,
     Class,
     Interfaces,
     Interface,
@@ -27,6 +28,12 @@ export enum BranchType {
     Const,
     Properties,
     Property,
+    PrivateProperty,
+    ProtectedProperty,
+    PublicProperty,
     Methods,
-    Method
+    Method,
+    PrivateMethod,
+    ProtectedMethod,
+    PublicMethod
 }

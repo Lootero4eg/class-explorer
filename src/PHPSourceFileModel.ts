@@ -83,8 +83,10 @@ export class PHPSourceFileModel implements ISourceFileModel{
                 ifaces = this.getChildren2(nextBranch);
                 
                 if(ifaces != [] && ifaces.length > 0){
-                    nextBranch.Nodes = nextBranch.Nodes.concat(ifaces);
-                    res.push(nextBranch);
+                    if(ifaces[0].Nodes.length > 0){
+                        nextBranch.Nodes = nextBranch.Nodes.concat(ifaces);
+                        res.push(nextBranch);
+                    }
                 }
                 
                 nextBranch = this.InitNewBranch();
@@ -92,9 +94,11 @@ export class PHPSourceFileModel implements ISourceFileModel{
                 nextBranch.Type = BranchType.Classes;                                                
                 classes = this.getChildren2(nextBranch);
 
-                if(classes != [] && classes.length > 0){                   
-                    nextBranch.Nodes = nextBranch.Nodes.concat(classes);
-                    res.push(nextBranch);                    
+                if(classes != [] && classes.length > 0){  
+                    if(classes[0].Nodes.length > 0){                 
+                        nextBranch.Nodes = nextBranch.Nodes.concat(classes);
+                        res.push(nextBranch);          
+                    }          
                 }                
                 return res;
 
@@ -120,7 +124,8 @@ export class PHPSourceFileModel implements ISourceFileModel{
                 let interfaceName: string =  this.FixWhiteSpaces(node.SearchPattern.replace(/^.*interface\s(.*?)/i,"$1"));                
                 interfaceName = this.CleanString(interfaceName); 
 
-                node.Name = interfaceName;                                                                      
+                node.Name = interfaceName;    
+                node.Icon = 7;                                                                   
                 node = this.GetClassOrInterfaceEnvironment(node);
                 ifaces.push(node);
                 return ifaces;
@@ -147,7 +152,8 @@ export class PHPSourceFileModel implements ISourceFileModel{
                 let classname: string =  this.FixWhiteSpaces(node.SearchPattern.replace(/^.*class\s(.*?)/,"$1"));                                
                 classname = this.CleanString(classname); 
                                 
-                node.Name = classname;                                                                      
+                node.Name = classname;     
+                node.Icon = 5;                                                                 
                 node = this.GetClassOrInterfaceEnvironment(node);
                 
                 classes.push(node);
@@ -190,7 +196,7 @@ export class PHPSourceFileModel implements ISourceFileModel{
                         let propBranch: Branch = this.InitNewBranch(node);
                         propBranch.Type = BranchType.Const;
                         propBranch.Name = property;
-                        propBranch.Icon = 2;
+                        propBranch.Icon = 1;
                         properties.push(propBranch);
                     }
                     node.Nodes = properties;
@@ -241,6 +247,7 @@ export class PHPSourceFileModel implements ISourceFileModel{
     private ClearComments(s: string): string{
         s = s.replace(/\s*(.*?)\s*(\/\/.*).*$/g,"$1");
         s = s.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/g,"");
+        s = s.replace(/\/\/[\s\S].*$/gm,"");
 
         return s;
     }
