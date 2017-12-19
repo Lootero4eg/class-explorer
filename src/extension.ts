@@ -2,47 +2,63 @@
 
 import * as vscode from 'vscode';
 
-import { DepNodeProvider } from './nodeDependencies'
-import { JsonOutlineProvider } from './jsonOutline'
-import { FtpTreeDataProvider, FtpNode } from './ftpExplorer'
 import { ClassExplorerProvider } from './ClassExplorer';
 import { PHPSourceFileModel } from './PHPSourceFileModel';
+import { Branch } from './common';
 
 export function activate(context: vscode.ExtensionContext) {
 	const rootPath = vscode.workspace.rootPath;
 
-	const nodeDependenciesProvider = new DepNodeProvider(rootPath);
-	const jsonOutlineProvider = new JsonOutlineProvider(context);
-	const ftpExplorerProvider = new FtpTreeDataProvider();
-	
 	let classExplorerProvider:ClassExplorerProvider = null;
 	
-	if (vscode.window.activeTextEditor.document.languageId === "php") {
+	/*if (vscode.window.activeTextEditor.document.languageId === "php") {
 		classExplorerProvider = new ClassExplorerProvider(new PHPSourceFileModel(vscode.window.activeTextEditor));
-	}	
+		classExplorerProvider.editor = vscode.window.activeTextEditor;
+	}*/	
+	
+	let subscriptions: vscode.Disposable[] = [];
+	let controller: TextEditorUpdater = new TextEditorUpdater();
 
-	vscode.window.registerTreeDataProvider('nodeDependencies', nodeDependenciesProvider);
-	vscode.commands.registerCommand('jsonOutline.refresh', () => jsonOutlineProvider.refresh());
-	vscode.commands.registerCommand('jsonOutline.refreshNode', offset => jsonOutlineProvider.refresh(offset));
-	vscode.commands.registerCommand('jsonOutline.renameNode', offset => jsonOutlineProvider.rename(offset));
-	vscode.window.registerTreeDataProvider('jsonOutline', jsonOutlineProvider);
-	vscode.window.registerTreeDataProvider('ftpExplorer', ftpExplorerProvider);
-	vscode.window.registerTreeDataProvider('classExplorer', classExplorerProvider);
+	context.subscriptions.push(controller);
 
-	vscode.commands.registerCommand('extension.openPackageOnNpm', moduleName => {
-		vscode.commands.executeCommand('vscode.open', vscode.Uri.parse(`https://www.npmjs.com/package/${moduleName}`));
-	});
-	vscode.commands.registerCommand('nodeDependencies.refreshEntry', () => nodeDependenciesProvider.refresh());
-	vscode.commands.registerCommand('nodeDependencies.addEntry', node => vscode.window.showInformationMessage('Successfully called add entry'));
-	vscode.commands.registerCommand('nodeDependencies.deleteEntry', node => vscode.window.showInformationMessage('Successfully called delete entry'));
+	let disposable = vscode.commands.registerCommand('extension.testClassExplorer', () => {        
+        vscode.window.showInformationMessage('!activated!');
+    });
 
-	vscode.commands.registerCommand('extension.openJsonSelection', range => {
-		jsonOutlineProvider.select(range);
-	});
-
-	vscode.commands.registerCommand('openFtpResource', (node: FtpNode) => {
-		vscode.workspace.openTextDocument(node.resource).then(document => {
-			vscode.window.showTextDocument(document);
-		});
-	});
+    context.subscriptions.push(disposable);
+	//vscode.window.registerTreeDataProvider('classExplorer', classExplorerProvider);
+	//vscode.window.onDidChangeActiveTextEditor(classExplorerProvider._onChangeActiveEditorEvent, classExplorerProvider, subscriptions);		
 }
+
+class TextEditorUpdater{
+	public classExplorerProvider:ClassExplorerProvider = null;
+	private _disposable: vscode.Disposable;	
+	
+	constructor(){		
+		if (vscode.window.activeTextEditor.document.languageId === "php") {
+			this.classExplorerProvider = new ClassExplorerProvider(new PHPSourceFileModel(vscode.window.activeTextEditor));
+			vscode.window.registerTreeDataProvider('classExplorer', this.classExplorerProvider);
+			
+			vscode.commands.registerCommand('classExplorerGoToDefinition', (node: Branch) => {						
+				let editor = vscode.window.activeTextEditor;
+				let range = editor.document.lineAt(node.StartLine).range;				
+				editor.selection =  new vscode.Selection(range.start, range.end);
+				editor.revealRange(range);
+			});
+		}
+		
+		let subscriptions: vscode.Disposable[] = [];
+		vscode.window.onDidChangeActiveTextEditor(this._onEvent, this, subscriptions);
+		this._disposable = vscode.Disposable.from(...subscriptions);
+	}
+
+	private _onEvent() {
+		this.classExplorerProvider = new ClassExplorerProvider(new PHPSourceFileModel(vscode.window.activeTextEditor));
+		vscode.window.registerTreeDataProvider('classExplorer', this.classExplorerProvider);
+	}
+
+	dispose() {
+        this._disposable.dispose();
+    }
+}
+

@@ -1,8 +1,8 @@
-import {TextEditor} from 'vscode';
+import {TextEditor, Position} from 'vscode';
 import { Branch, ISourceFileModel, BranchType } from './common';
 
 export class PHPSourceFileModel implements ISourceFileModel{
-    private editor: TextEditor = null;
+    public editor: TextEditor = null;
     private phpfile: string = null;
     private cleanText: string = null;
     
@@ -12,30 +12,8 @@ export class PHPSourceFileModel implements ISourceFileModel{
         this.cleanText = this.ClearComments(this.phpfile);
     }
 
-    public getTree(): Branch[]{
-        //let phpfile: string = this.editor.document.getText();
-        //let classnames: string[] = phpfile.match(/class.*/g);
-        /*let branch: Branch = new Branch();
-
-        if(classnames != null && classnames.length > 0){
-            if(classnames.length >= 2){
-                branch.Type = BranchType.Classes;
-                branch.Name = "Classes";
-                branch.StartLine = 0;
-                branch.EndLine = 0;
-                branch.Icon = 1;  
-                branch.Nodes = [];
-                classnames.forEach(element => {
-                    
-                });
-                this.getChildren2(branch, classnames);
-            }
-            
-        }*/                
-
-        let res: Branch[] = this.getChildren2(null);
-        //branch.Nodes = this.getChildren(branch.Nodes[0]);
-        //res.push(branch);
+    public getTree(): Branch[]{                       
+        let res: Branch[] = this.getChildren2(null);        
 
         return res;
     }
@@ -108,8 +86,7 @@ export class PHPSourceFileModel implements ISourceFileModel{
                     for(var i = 0; i < interfaces.length; i++) {
                         nextBranch = this.InitNewBranch();
                         nextBranch.Name = "Interface";                        
-                        nextBranch.Type = BranchType.Interface;
-                        nextBranch.Icon = 2;
+                        nextBranch.Type = BranchType.Interface;                        
                         nextBranch.SearchPattern = interfaces[i];
                         ifaces = ifaces.concat(this.getChildren2(nextBranch));
                         if(ifaces[0].Nodes != [] && ifaces[0].Nodes[0] != null)
@@ -124,20 +101,19 @@ export class PHPSourceFileModel implements ISourceFileModel{
                 let interfaceName: string =  this.FixWhiteSpaces(node.SearchPattern.replace(/^.*interface\s(.*?)/i,"$1"));                
                 interfaceName = this.CleanString(interfaceName); 
 
-                node.Name = interfaceName;    
-                node.Icon = 7;                                                                   
+                node.Name = interfaceName;                                                                              
                 node = this.GetClassOrInterfaceEnvironment(node);
                 ifaces.push(node);
                 return ifaces;
 
             case BranchType.Classes:                                
-                let classnames: string[] = this.cleanText.match(/class\s*\w+/g);
+                //let classnames: string[] = this.cleanText.match(/class\s*\w+/g);
+                let classnames: string[] = this.cleanText.match(/(public|protected|private)?\s*(abstract)?\s*class\s*\w+/g);
                 if(classnames != null && classnames.length > 0){
                     for(var i = 0; i < classnames.length; i++) {
                         nextBranch = this.InitNewBranch();
                         nextBranch.Name = "Class";                        
-                        nextBranch.Type = BranchType.Class;
-                        nextBranch.Icon = 1;
+                        nextBranch.Type = BranchType.Class;                        
                         nextBranch.SearchPattern = classnames[i];
                         classes = classes.concat(this.getChildren2(nextBranch));
                         if(classes[0].Nodes != [] && classes[0].Nodes[0] != null)
@@ -150,10 +126,14 @@ export class PHPSourceFileModel implements ISourceFileModel{
 
             case BranchType.Class:
                 let classname: string =  this.FixWhiteSpaces(node.SearchPattern.replace(/^.*class\s(.*?)/,"$1"));                                
-                classname = this.CleanString(classname); 
+                classname = this.CleanString(classname);
+                let abstract: String = classname.replace(/(public|protected|private)?\s*(abstract)?\s*class\s*(\w+)/i,"$2");
+                classname = classname.replace(/(public|protected|private)?\s*(abstract)?\s*class\s*(\w+)/i,"$3");
                                 
-                node.Name = classname;     
-                node.Icon = 5;                                                                 
+                node.Type = BranchType.Class;
+                if(abstract == "abstract")
+                    node.Type = BranchType.AbstractClass;
+                node.Name = classname;                                                                                    
                 node = this.GetClassOrInterfaceEnvironment(node);
                 
                 classes.push(node);
@@ -168,35 +148,36 @@ export class PHPSourceFileModel implements ISourceFileModel{
                         let constant: string = constants[i].replace(/const\s*(\w+).*;/i,"$1");
                         constant = this.CleanString(constant);
                         let constBranch: Branch = this.InitNewBranch(node);
-                        constBranch.Type = BranchType.Const;
-                        constBranch.Name = constant;
-                        constBranch.Icon = 2;
+                        constBranch.Type = BranchType.Constant;
+                        constBranch.Name = constant;                        
                         consts.push(constBranch);
                     }
                     node.Nodes = consts;
                     break;
                 
-                case BranchType.Const://--not used
+                case BranchType.Constant://--not used
                     node = null;
                     break;
                 
-                case BranchType.Properties:
-                    let props: string[] = [];
+                case BranchType.Properties:                    
                     tmpContent = this.GetBracketsContent(this.cleanText,node.Parent.SearchPattern,"{","}");
-                    let privateP: string[] = tmpContent.match(/private\s*.*;/gi);
-                    let protectedP: string[] = tmpContent.match(/protected\s*.*;/gi);                    
-                    let publicP: string[] = tmpContent.match(/public\s*.*;/gi);
-                    props = props.concat(privateP != null ? privateP : []);
-                    props = props.concat(protectedP != null ? protectedP : []);
-                    props = props.concat(publicP != null ? publicP : []);
+                    let props: string[] = tmpContent.match(/(public|protected|private)\s*(static)?\s*\$\w+\s*.*;/gi);                    
+                    props = (props == null ? [] : props);
 
                     for(var i=0; i< props.length; i++){                        
-                        let property: string = props[i].replace(/\s*.*(\$.*?);/,'$1');                        
+                        let modifier: string = props[i].replace(/(public|protected|private)\s*(static)?\s*\$\w+\s*.*;/i,"$1");
+                        let property: string = props[i].replace(/\s*.*(\$\w+)\s*.*;/,'$1');
                         property = this.CleanString(property);
                         let propBranch: Branch = this.InitNewBranch(node);
-                        propBranch.Type = BranchType.Const;
-                        propBranch.Name = property;
-                        propBranch.Icon = 1;
+                        propBranch.Type = BranchType.PublicProperty;
+                        if(modifier == "private")
+                            propBranch.Type = BranchType.PrivateProperty;
+                        if(modifier == "protected")
+                            propBranch.Type = BranchType.ProtectedProperty;
+                        if(modifier == "public")
+                            propBranch.Type = BranchType.PublicProperty;
+                        
+                        propBranch.Name = property;                        
                         properties.push(propBranch);
                     }
                     node.Nodes = properties;
@@ -206,16 +187,31 @@ export class PHPSourceFileModel implements ISourceFileModel{
                     break;
                 case BranchType.Methods:
                     tmpContent = this.GetBracketsContent(this.cleanText,node.Parent.SearchPattern,"{","}");
-                    let methodsArr: string[] = tmpContent.match(/function\s*.*/gi);
+                    let methodsArr: string[] = tmpContent.match(/(public|protected|private)?\s*(static)?\s*function\s*(\w+)\s*/gi);
                     methodsArr = (methodsArr != null ? methodsArr : []);
 
                     for(var i=0; i< methodsArr.length; i++){
-                        let method: string = methodsArr[i].replace(/function\s*(\w+)\s*.*\(.*/i,"$1");
+                        //this.editor.document.                        
+                        let modifier: string = methodsArr[i].replace(/(public|protected|private)\s*(static)?\s*function\s*(\w+)\s*/i,"$1");
+                        let method: string = methodsArr[i].replace(/.*function\s*(\w+)\s*/i,"$1");
                         method = this.CleanString(method);
                         let methodBranch: Branch = this.InitNewBranch(node);
-                        methodBranch.Type = BranchType.Method;
-                        methodBranch.Name = method;
-                        methodBranch.Icon = 6;
+
+                        //--тут будут проблемы с закоментированными строками...
+                        let standardPosition: number = this.phpfile.indexOf(methodsArr[i].replace(/\s*(.*)/,"$1"));
+                        if(standardPosition >= 0){
+                            let pos:Position = this.editor.document.positionAt(standardPosition);
+                            methodBranch.StartLine = pos.line;
+                        }
+
+                        methodBranch.Type = BranchType.PublicMethod;
+                        if(modifier == "private")
+                            methodBranch.Type = BranchType.PrivateMethod;
+                        if(modifier == "protected")
+                            methodBranch.Type = BranchType.ProtectedMethod;
+                        if(modifier == "public")
+                            methodBranch.Type = BranchType.PublicMethod;
+                        methodBranch.Name = method;                        
                         methods.push(methodBranch);
                     }
                     node.Nodes = methods;
@@ -235,8 +231,7 @@ export class PHPSourceFileModel implements ISourceFileModel{
         branch.Type = BranchType.None;
         branch.Name = "";
         branch.StartLine = 0;
-        branch.EndLine = 0;
-        branch.Icon = 0;
+        //branch.EndLine = 0;        
         branch.Nodes = [];
         branch.SearchPattern = "";
         branch.Parent = parent;
@@ -320,15 +315,13 @@ export class PHPSourceFileModel implements ISourceFileModel{
         let nextBranch: Branch = this.InitNewBranch(node);
         nextBranch.Parent = node;                        
         nextBranch.Name = "Constants";
-        nextBranch.Type = BranchType.Constants;
-        nextBranch.Icon = 3;
+        nextBranch.Type = BranchType.Constants;        
         consts = this.getChildren2(nextBranch);
 
         nextBranch = this.InitNewBranch(node);                        
         nextBranch.Parent = node;
         nextBranch.Name = "Properties";
-        nextBranch.Type = BranchType.Properties;      
-        nextBranch.Icon = 4;
+        nextBranch.Type = BranchType.Properties;              
         properties = this.getChildren2(nextBranch);
 
         nextBranch = this.InitNewBranch(node);                        

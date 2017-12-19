@@ -3,47 +3,27 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Branch, ISourceFileModel, BranchType } from './common';
 
-let a = 1;
-
 export class ClassExplorerProvider implements vscode.TreeDataProvider<Branch>, vscode.TextDocumentContentProvider {
 
     private _onDidChangeTreeData: vscode.EventEmitter<any> = new vscode.EventEmitter<any>();
 	readonly onDidChangeTreeData: vscode.Event<any> = this._onDidChangeTreeData.event;
 
-    private model: ISourceFileModel = null;
+	private model: ISourceFileModel = null;	
 
 	constructor(filemodel: ISourceFileModel){
         this.model = filemodel;
     }
     
-    getTreeItem(element: Branch): vscode.TreeItem {
-		
+    public getTreeItem(element: Branch): vscode.TreeItem {
+		//--Переделать все на бранч тайп и убрать поле Icon я считаю оно тут совсем не нужно
 		let treeItem: vscode.TreeItem = {
 			label: element.Name,
 			collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
-			command: null,		
-			/*iconPath: {
-				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'folder.svg'),
-				dark: path.join(__filename, '..', '..', '..', 'resources', 'dark', 'folder.svg')
-			}*/
-		};
+			//command: null			
+			command: {command: 'classExplorerGoToDefinition', arguments:[element] , title: element.Name}
+		};	
 
-		if(element.Icon == 0){
-			treeItem.iconPath = {
-				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'folder.svg'),
-				dark: path.join(__filename, '..', '..', '..', 'resources', 'dark', 'folder.svg')
-			};
-			
-		}
-
-		if(element.Icon == 1){
-			treeItem.iconPath = {
-				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'property.svg'),
-				dark: path.join(__filename, '..', '..', '..', 'resources', 'dark', 'property.svg')
-			};
-		}
-
-		if(element.Icon == 2){
+		if(element.Type == BranchType.Constant){
 			treeItem.iconPath = {
 				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'constant.svg'),
 				dark: path.join(__filename, '..', '..', '..', 'resources', 'dark', 'constant.svg')
@@ -51,7 +31,8 @@ export class ClassExplorerProvider implements vscode.TreeDataProvider<Branch>, v
 			treeItem.collapsibleState = vscode.TreeItemCollapsibleState.None;
 		}		
 
-		if(element.Icon == 3 || element.Icon == 4 || element.Type == BranchType.Interface){
+		if(element.Type == BranchType.Properties || element.Type == BranchType.Methods 
+			|| element.Type == BranchType.Interfaces || element.Type == BranchType.Constants){
 			treeItem.iconPath = {
 				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'folder.svg'),
 				dark: path.join(__filename, '..', '..', '..', 'resources', 'dark', 'folder.svg')
@@ -61,36 +42,84 @@ export class ClassExplorerProvider implements vscode.TreeDataProvider<Branch>, v
 		}
 
 		//--non collapsible items
-		if(element.Type == BranchType.Const || element.Type == BranchType.Property || element.Type == BranchType.Method){
+		if(element.Type == BranchType.Constant 
+			|| element.Type == BranchType.Property || element.Type == BranchType.PrivateProperty|| element.Type == BranchType.ProtectedProperty|| element.Type == BranchType.PublicProperty
+			|| element.Type == BranchType.Method || element.Type == BranchType.PrivateMethod|| element.Type == BranchType.ProtectedMethod|| element.Type == BranchType.PublicMethod){
 			treeItem.collapsibleState = vscode.TreeItemCollapsibleState.None;
 		}
 
-		if(element.Icon == 5){
+		if(element.Type == BranchType.AbstractClass){
+			treeItem.iconPath = {
+				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'abstractclass.svg'),
+				dark: path.join(__filename, '..', '..', '..', 'resources', 'light', 'abstractclass.svg')
+			};			
+		}
+
+		if(element.Type == BranchType.Class){
 			treeItem.iconPath = {
 				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'class.svg'),
 				dark: path.join(__filename, '..', '..', '..', 'resources', 'light', 'class.svg')
 			};			
 		}	
 
-		if(element.Icon == 6){
+		if(element.Type == BranchType.PrivateMethod){
 			treeItem.iconPath = {
-				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'method.png'),
-				dark: path.join(__filename, '..', '..', '..', 'resources', 'light', 'method.png')
+				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'methodprivate.svg'),
+				dark: path.join(__filename, '..', '..', '..', 'resources', 'light', 'methodprivate.svg')
 			};			
 		}
 
-		if(element.Icon == 7){
+		if(element.Type == BranchType.ProtectedMethod){
+			treeItem.iconPath = {
+				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'methodprotect.svg'),
+				dark: path.join(__filename, '..', '..', '..', 'resources', 'light', 'methodprotect.svg')
+			};			
+		}
+
+		if(element.Type == BranchType.PublicMethod){
+			treeItem.iconPath = {
+				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'method.svg'),
+				dark: path.join(__filename, '..', '..', '..', 'resources', 'light', 'methodp.svg')
+			};			
+		}
+
+		if(element.Type == BranchType.PrivateProperty){
+			treeItem.iconPath = {
+				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'propertyprivate.svg'),
+				dark: path.join(__filename, '..', '..', '..', 'resources', 'light', 'propertyrivate.svg')
+			};			
+		}
+
+		if(element.Type == BranchType.ProtectedProperty){
+			treeItem.iconPath = {
+				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'propertyprotect.svg'),
+				dark: path.join(__filename, '..', '..', '..', 'resources', 'light', 'propertyprotect.svg')
+			};			
+		}
+
+		if(element.Type == BranchType.PublicProperty){
+			treeItem.iconPath = {
+				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'property.svg'),
+				dark: path.join(__filename, '..', '..', '..', 'resources', 'light', 'property.svg')
+			};			
+		}
+
+		if(element.Type == BranchType.Interface){
 			treeItem.iconPath = {
 				light: path.join(__filename, '..', '..', '..', 'resources', 'light', 'interface.svg'),
 				dark: path.join(__filename, '..', '..', '..', 'resources', 'light', 'interface.svg')
 			};			
 		}
 
+		if(element.Type == BranchType.Methods){
+			treeItem.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
+		}
+
 
 		return treeItem;
     }
     
-    getChildren(element?: Branch):Branch[] {        
+    public getChildren(element?: Branch):Branch[] {        
 		if (!element) {
 			if (!this.model) {
 				return [];

@@ -1,9 +1,9 @@
-export class Branch {// extends vscode.TreeItem {              
-    public Icon: number = 0;
+import {TextEditor} from 'vscode';
+export class Branch {// extends vscode.TreeItem {                  
     public Name: string = "";
     public Type: BranchType;
     public StartLine: number = 0;
-    public EndLine: number = 0;
+    //public EndLine: number = 0;
     public SearchPattern: string = "";
 
     public Parent: Branch = null;
@@ -12,6 +12,7 @@ export class Branch {// extends vscode.TreeItem {
 }
 
 export interface ISourceFileModel {
+    editor: TextEditor;
     getTree(): Branch[];
     getChildren(node: Branch): Branch[];
 }
@@ -25,7 +26,7 @@ export enum BranchType {
     Interfaces,
     Interface,
     Constants,
-    Const,
+    Constant,
     Properties,
     Property,
     PrivateProperty,
