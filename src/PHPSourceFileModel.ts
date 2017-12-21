@@ -1,15 +1,18 @@
 import {TextEditor, Position} from 'vscode';
 import { Branch, ISourceFileModel, BranchType } from './common';
+import { connect } from 'http2';
 
 export class PHPSourceFileModel implements ISourceFileModel{
     public editor: TextEditor = null;
     private phpfile: string = null;
     private cleanText: string = null;
+    public commentedLines: number[] = [];
     
     constructor(activeEditor: TextEditor){
         this.editor = activeEditor;
         this.phpfile = this.editor.document.getText();
         this.cleanText = this.ClearComments(this.phpfile);
+        this.GetCommentedLines(this.phpfile);
     }
 
     public getTree(): Branch[]{                       
@@ -101,6 +104,7 @@ export class PHPSourceFileModel implements ISourceFileModel{
                 let interfaceName: string =  this.FixWhiteSpaces(node.SearchPattern.replace(/^.*interface\s(.*?)/i,"$1"));                
                 interfaceName = this.CleanString(interfaceName); 
 
+                node.StartLine = this.SearchLineNumber(interfaceName.replace(/\s*(.*)/,"$1"),this.phpfile);    
                 node.Name = interfaceName;                                                                              
                 node = this.GetClassOrInterfaceEnvironment(node);
                 ifaces.push(node);
@@ -133,6 +137,7 @@ export class PHPSourceFileModel implements ISourceFileModel{
                 node.Type = BranchType.Class;
                 if(abstract == "abstract")
                     node.Type = BranchType.AbstractClass;
+                node.StartLine = this.SearchLineNumber(classname.replace(/\s*(.*)/,"$1"),this.phpfile);    
                 node.Name = classname;                                                                                    
                 node = this.GetClassOrInterfaceEnvironment(node);
                 
@@ -141,13 +146,14 @@ export class PHPSourceFileModel implements ISourceFileModel{
 
                 case BranchType.Constants:
                     tmpContent = this.GetBracketsContent(this.cleanText,node.Parent.SearchPattern,"{","}");
-                    let constants: string[] = tmpContent.match(/const\s*.*/gi);
+                    let constants: string[] = tmpContent.match(/const\s+.*/gi);
                     if(constants == null)
                         break;
                     for(var i=0; i< constants.length; i++){
                         let constant: string = constants[i].replace(/const\s*(\w+).*;/i,"$1");
                         constant = this.CleanString(constant);
                         let constBranch: Branch = this.InitNewBranch(node);
+                        constBranch.StartLine = this.SearchLineNumber(constants[i].replace(/\s*(.*)/,"$1"),this.phpfile);
                         constBranch.Type = BranchType.Constant;
                         constBranch.Name = constant;                        
                         consts.push(constBranch);
@@ -177,6 +183,7 @@ export class PHPSourceFileModel implements ISourceFileModel{
                         if(modifier == "public")
                             propBranch.Type = BranchType.PublicProperty;
                         
+                        propBranch.StartLine = this.SearchLineNumber(props[i].replace(/\s*(.*)/,"$1"),this.phpfile);
                         propBranch.Name = property;                        
                         properties.push(propBranch);
                     }
@@ -198,11 +205,12 @@ export class PHPSourceFileModel implements ISourceFileModel{
                         let methodBranch: Branch = this.InitNewBranch(node);
 
                         //--тут будут проблемы с закоментированными строками...
-                        let standardPosition: number = this.phpfile.indexOf(methodsArr[i].replace(/\s*(.*)/,"$1"));
+                        methodBranch.StartLine = this.SearchLineNumber(methodsArr[i].replace(/\s*(.*)/,"$1"),this.phpfile);
+                        /*let standardPosition: number = this.phpfile.indexOf(methodsArr[i].replace(/\s*(.*)/,"$1"));
                         if(standardPosition >= 0){
                             let pos:Position = this.editor.document.positionAt(standardPosition);
                             methodBranch.StartLine = pos.line;
-                        }
+                        }*/
 
                         methodBranch.Type = BranchType.PublicMethod;
                         if(modifier == "private")
@@ -341,4 +349,74 @@ export class PHPSourceFileModel implements ISourceFileModel{
 
         return node;
     }
+
+    private GetCommentedLines(content: string): void {
+        this.commentedLines = [];
+        let singleLinesComments: string[] = content.match(/^\s+\/\/.*$/gm);
+        let blockLinesComments: string[] = content.match(/\/\*[\s\S]*\*\//);
+
+        singleLinesComments != null ? singleLinesComments : [];
+        for(var i = 0; i < singleLinesComments.length; i++){
+            let standardPosition: number = content.indexOf(singleLinesComments[i]);
+            let pos: Position = this.editor.document.positionAt(standardPosition);
+            if(this.commentedLines.indexOf(pos.line) < 0)
+                this.commentedLines.push(pos.line);
+            
+            content = content.replace(singleLinesComments[i],
+                singleLinesComments[i].replace(/(.*)\/\/(.*)/g,"$1") 
+                + singleLinesComments[i].replace(/.*(\/\/.*)/,"$1").replace(/[\s\S]/g,'z'));
+        }
+
+        blockLinesComments != null ? blockLinesComments : [];
+        for(var i = 0; i < blockLinesComments.length; i++){
+            let startPosition: number = content.indexOf(blockLinesComments[i]);
+            let endPosition: number = startPosition + (blockLinesComments[i].length - 1);            
+            for(var j = startPosition; j < endPosition;j++){
+                let pos: Position = this.editor.document.positionAt(j);
+                if(this.commentedLines.indexOf(pos.line) < 0)
+                    this.commentedLines.push(pos.line);             
+            }                
+        }
+    }
+
+    private SearchLineNumber(searchPattern: string, content: string): number {
+        let idx: number = 0;
+        let standardPosition: number = 0;        
+
+        while(true){
+            standardPosition = content.indexOf(searchPattern, idx);
+            if(standardPosition >= 0){
+                let pos:Position = this.editor.document.positionAt(standardPosition);
+                if(!this.IsCommentedLine(pos.line))
+                    return pos.line;
+                idx = standardPosition + 1;
+            }
+            else
+                break;            
+        }        
+
+        return 0;
+    }
+
+    private IsCommentedLine(linenumber: number): boolean {
+        for(var i = 0;i < this.commentedLines.length; i++){
+            if(linenumber == this.commentedLines[i])
+                return true;            
+        }
+
+        return false;
+    }
+
+    /*private EscapeRegExpString(s: string): string{
+        s = s.replace("^", "\^");
+        s = s.replace("$", "\$");
+        s = s.replace("(", "\(");
+        s = s.replace(")", "\)");
+        s = s.replace("[", "\[");
+        s = s.replace("]", "\]");
+        s = s.replace("*", "\*");
+        s = s.replace(".", "\.");
+        
+        return s;
+    }*/
 }

@@ -9,13 +9,7 @@ import { Branch } from './common';
 export function activate(context: vscode.ExtensionContext) {
 	const rootPath = vscode.workspace.rootPath;
 
-	let classExplorerProvider:ClassExplorerProvider = null;
-	
-	/*if (vscode.window.activeTextEditor.document.languageId === "php") {
-		classExplorerProvider = new ClassExplorerProvider(new PHPSourceFileModel(vscode.window.activeTextEditor));
-		classExplorerProvider.editor = vscode.window.activeTextEditor;
-	}*/	
-	
+	let classExplorerProvider:ClassExplorerProvider = null;			
 	let subscriptions: vscode.Disposable[] = [];
 	let controller: TextEditorUpdater = new TextEditorUpdater();
 
@@ -25,9 +19,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.showInformationMessage('!activated!');
     });
 
-    context.subscriptions.push(disposable);
-	//vscode.window.registerTreeDataProvider('classExplorer', classExplorerProvider);
-	//vscode.window.onDidChangeActiveTextEditor(classExplorerProvider._onChangeActiveEditorEvent, classExplorerProvider, subscriptions);		
+    context.subscriptions.push(disposable);	
 }
 
 class TextEditorUpdater{
@@ -48,13 +40,19 @@ class TextEditorUpdater{
 		}
 		
 		let subscriptions: vscode.Disposable[] = [];
-		vscode.window.onDidChangeActiveTextEditor(this._onEvent, this, subscriptions);
+		vscode.window.onDidChangeActiveTextEditor(this._onActiveTextEditorChanged, this, subscriptions);
+		//vscode.window.onDidChangeTextEditorSelection(this._onDidChangeTextEditorSelection, this, subscriptions);
+		vscode.workspace.onDidSaveTextDocument(this._onActiveTextEditorChanged, this);
 		this._disposable = vscode.Disposable.from(...subscriptions);
 	}
 
-	private _onEvent() {
+	private _onActiveTextEditorChanged() {
 		this.classExplorerProvider = new ClassExplorerProvider(new PHPSourceFileModel(vscode.window.activeTextEditor));
-		vscode.window.registerTreeDataProvider('classExplorer', this.classExplorerProvider);
+		vscode.window.registerTreeDataProvider('classExplorer', this.classExplorerProvider);		
+	}
+
+	private _onDidChangeTextEditorSelection() {
+		//this.classExplorerProvider.selectActiveNodeByLine(1);
 	}
 
 	dispose() {

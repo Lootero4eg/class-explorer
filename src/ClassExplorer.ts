@@ -9,8 +9,15 @@ export class ClassExplorerProvider implements vscode.TreeDataProvider<Branch>, v
 	readonly onDidChangeTreeData: vscode.Event<any> = this._onDidChangeTreeData.event;
 
 	private model: ISourceFileModel = null;	
+	private root:Branch[] = null;
 
 	constructor(filemodel: ISourceFileModel){
+		vscode.window.onDidChangeActiveTextEditor(editor => {
+            if (editor) {
+				//this.refresh();
+				this._onDidChangeTreeData.fire();
+            }
+        });
         this.model = filemodel;
     }
     
@@ -30,7 +37,7 @@ export class ClassExplorerProvider implements vscode.TreeDataProvider<Branch>, v
 			};
 			treeItem.collapsibleState = vscode.TreeItemCollapsibleState.None;
 		}		
-
+		
 		if(element.Type == BranchType.Properties || element.Type == BranchType.Methods 
 			|| element.Type == BranchType.Interfaces || element.Type == BranchType.Constants){
 			treeItem.iconPath = {
@@ -125,8 +132,8 @@ export class ClassExplorerProvider implements vscode.TreeDataProvider<Branch>, v
 				return [];
 			}
 
-			let root:Branch[] = this.model.getTree();
-			return root;			
+			this.root = this.model.getTree();
+			return this.root;			
         }
 		
 		if(element.Nodes.length > 0)
@@ -135,5 +142,9 @@ export class ClassExplorerProvider implements vscode.TreeDataProvider<Branch>, v
 
     public provideTextDocumentContent(uri: vscode.Uri, token: vscode.CancellationToken): vscode.ProviderResult<string> {
 		return null;
+	}
+
+	public selectActiveNodeByLine(linenum: number){
+		//--There are no API for selecting node... Wainting for API.
 	}
 }
