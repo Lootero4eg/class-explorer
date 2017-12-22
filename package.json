@@ -11,9 +11,6 @@
         "Other"
     ],
     "activationEvents": [
-        "onView:nodeDependencies",
-        "onView:ftpExplorer",
-        "onView:jsonOutline",
         "onView:classExplorer"
     ],
     "main": "./out/src/extension",

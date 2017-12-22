@@ -9,7 +9,11 @@ export class PHPSourceFileModel implements ISourceFileModel{
     public commentedLines: number[] = [];
     
     constructor(activeEditor: TextEditor){
-        this.editor = activeEditor;
+        this.setEditor(activeEditor);        
+    }
+
+    public setEditor(editor: TextEditor): void{
+        this.editor = editor;
         this.phpfile = this.editor.document.getText();
         this.cleanText = this.ClearComments(this.phpfile);
         this.GetCommentedLines(this.phpfile);

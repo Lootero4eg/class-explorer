@@ -12,21 +12,19 @@ export class ClassExplorerProvider implements vscode.TreeDataProvider<Branch>, v
 	private root:Branch[] = null;
 
 	constructor(filemodel: ISourceFileModel){
+		this.model = filemodel;
+
 		vscode.window.onDidChangeActiveTextEditor(editor => {
-            if (editor) {
-				//this.refresh();
-				this._onDidChangeTreeData.fire();
+            if (editor) {								
+				this.refresh();
             }
-        });
-        this.model = filemodel;
+        });        
     }
     
-    public getTreeItem(element: Branch): vscode.TreeItem {
-		//--Переделать все на бранч тайп и убрать поле Icon я считаю оно тут совсем не нужно
+    public getTreeItem(element: Branch): vscode.TreeItem {		
 		let treeItem: vscode.TreeItem = {
 			label: element.Name,
-			collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
-			//command: null			
+			collapsibleState: vscode.TreeItemCollapsibleState.Expanded,			
 			command: {command: 'classExplorerGoToDefinition', arguments:[element] , title: element.Name}
 		};	
 
@@ -46,13 +44,14 @@ export class ClassExplorerProvider implements vscode.TreeDataProvider<Branch>, v
 			};
 
 			treeItem.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
+			treeItem.command = null;
 		}
 
 		//--non collapsible items
 		if(element.Type == BranchType.Constant 
 			|| element.Type == BranchType.Property || element.Type == BranchType.PrivateProperty|| element.Type == BranchType.ProtectedProperty|| element.Type == BranchType.PublicProperty
 			|| element.Type == BranchType.Method || element.Type == BranchType.PrivateMethod|| element.Type == BranchType.ProtectedMethod|| element.Type == BranchType.PublicMethod){
-			treeItem.collapsibleState = vscode.TreeItemCollapsibleState.None;
+			treeItem.collapsibleState = vscode.TreeItemCollapsibleState.None;			
 		}
 
 		if(element.Type == BranchType.AbstractClass){
@@ -132,7 +131,8 @@ export class ClassExplorerProvider implements vscode.TreeDataProvider<Branch>, v
 				return [];
 			}
 
-			this.root = this.model.getTree();
+			if(this.root == null)
+				this.root = this.model.getTree();
 			return this.root;			
         }
 		
@@ -140,11 +140,17 @@ export class ClassExplorerProvider implements vscode.TreeDataProvider<Branch>, v
 			return element.Nodes;			
     }
 
+	public refresh(): void{
+		this.model.setEditor(vscode.window.activeTextEditor);
+		this.root = this.model.getTree();		
+		this._onDidChangeTreeData.fire();
+	}
+
     public provideTextDocumentContent(uri: vscode.Uri, token: vscode.CancellationToken): vscode.ProviderResult<string> {
 		return null;
 	}
 
 	public selectActiveNodeByLine(linenum: number){
-		//--There are no API for selecting node... Wainting for API.
+		//--There are no API for selecting node... Wainting for API.		
 	}
 }

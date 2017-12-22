@@ -35,24 +35,34 @@ class TextEditorUpdater{
 				let editor = vscode.window.activeTextEditor;
 				let range = editor.document.lineAt(node.StartLine).range;				
 				editor.selection =  new vscode.Selection(range.start, range.end);
-				editor.revealRange(range);
+				editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
 			});
 		}
 		
 		let subscriptions: vscode.Disposable[] = [];
 		vscode.window.onDidChangeActiveTextEditor(this._onActiveTextEditorChanged, this, subscriptions);
 		//vscode.window.onDidChangeTextEditorSelection(this._onDidChangeTextEditorSelection, this, subscriptions);
-		vscode.workspace.onDidSaveTextDocument(this._onActiveTextEditorChanged, this);
+		vscode.workspace.onDidSaveTextDocument(this._onDidSaveTextDocument, this);
 		this._disposable = vscode.Disposable.from(...subscriptions);
 	}
 
 	private _onActiveTextEditorChanged() {
 		this.classExplorerProvider = new ClassExplorerProvider(new PHPSourceFileModel(vscode.window.activeTextEditor));
-		vscode.window.registerTreeDataProvider('classExplorer', this.classExplorerProvider);		
+		this.refreshTree();	
 	}
 
 	private _onDidChangeTextEditorSelection() {
 		//this.classExplorerProvider.selectActiveNodeByLine(1);
+		this.refreshTree();
+	}
+
+	private _onDidSaveTextDocument() {
+		this.classExplorerProvider.refresh();
+		this.refreshTree();
+	}
+
+	private refreshTree(): void{
+		vscode.window.registerTreeDataProvider('classExplorer', this.classExplorerProvider);
 	}
 
 	dispose() {

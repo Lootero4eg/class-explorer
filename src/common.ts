@@ -12,7 +12,7 @@ export class Branch {// extends vscode.TreeItem {
 }
 
 export interface ISourceFileModel {
-    editor: TextEditor;
+    setEditor(editor: TextEditor): void;
     getTree(): Branch[];
     getChildren(node: Branch): Branch[];
 }
